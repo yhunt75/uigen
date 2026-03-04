@@ -1,6 +1,6 @@
 import { test, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { MessageList } from "../MessageList";
+import { MessageList, EmptyState } from "../MessageList";
 import type { Message } from "ai";
 
 // Mock the MarkdownRenderer component
@@ -12,15 +12,11 @@ afterEach(() => {
   cleanup();
 });
 
-test("MessageList shows empty state when no messages", () => {
-  render(<MessageList messages={[]} />);
+test("EmptyState renders heading and subtitle", () => {
+  render(<EmptyState />);
 
-  expect(
-    screen.getByText("Start a conversation to generate React components")
-  ).toBeDefined();
-  expect(
-    screen.getByText("I can help you create buttons, forms, cards, and more")
-  ).toBeDefined();
+  expect(screen.getByText("Start a conversation to generate React components")).toBeDefined();
+  expect(screen.getByText("I can help you create buttons, forms, cards, and more")).toBeDefined();
 });
 
 test("MessageList renders user messages", () => {
@@ -78,7 +74,87 @@ test("MessageList renders messages with parts", () => {
   render(<MessageList messages={messages} />);
 
   expect(screen.getByText("Creating your component...")).toBeDefined();
-  expect(screen.getByText("str_replace_editor")).toBeDefined();
+  expect(screen.getByText("Editing")).toBeDefined();
+});
+
+test("tool-invocation shows 'Creating <filename>' for str_replace_editor create", () => {
+  const messages: Message[] = [{
+    id: "1", role: "assistant", content: "",
+    parts: [{
+      type: "tool-invocation",
+      toolInvocation: {
+        toolCallId: "1", toolName: "str_replace_editor", state: "result", result: "ok",
+        args: { command: "create", path: "/src/Button.tsx" },
+      },
+    }],
+  }];
+
+  render(<MessageList messages={messages} />);
+  expect(screen.getByText("Creating Button.tsx")).toBeDefined();
+});
+
+test("tool-invocation shows 'Updating <filename>' for str_replace_editor str_replace", () => {
+  const messages: Message[] = [{
+    id: "1", role: "assistant", content: "",
+    parts: [{
+      type: "tool-invocation",
+      toolInvocation: {
+        toolCallId: "1", toolName: "str_replace_editor", state: "result", result: "ok",
+        args: { command: "str_replace", path: "/App.tsx" },
+      },
+    }],
+  }];
+
+  render(<MessageList messages={messages} />);
+  expect(screen.getByText("Updating App.tsx")).toBeDefined();
+});
+
+test("tool-invocation shows 'Deleting <filename>' for file_manager delete", () => {
+  const messages: Message[] = [{
+    id: "1", role: "assistant", content: "",
+    parts: [{
+      type: "tool-invocation",
+      toolInvocation: {
+        toolCallId: "1", toolName: "file_manager", state: "result", result: { success: true },
+        args: { command: "delete", path: "/old.tsx" },
+      },
+    }],
+  }];
+
+  render(<MessageList messages={messages} />);
+  expect(screen.getByText("Deleting old.tsx")).toBeDefined();
+});
+
+test("tool-invocation shows 'Renaming to <filename>' for file_manager rename", () => {
+  const messages: Message[] = [{
+    id: "1", role: "assistant", content: "",
+    parts: [{
+      type: "tool-invocation",
+      toolInvocation: {
+        toolCallId: "1", toolName: "file_manager", state: "result", result: { success: true },
+        args: { command: "rename", path: "/old.tsx", new_path: "/Card.tsx" },
+      },
+    }],
+  }];
+
+  render(<MessageList messages={messages} />);
+  expect(screen.getByText("Renaming to Card.tsx")).toBeDefined();
+});
+
+test("tool-invocation falls back to toolName for unknown tools", () => {
+  const messages: Message[] = [{
+    id: "1", role: "assistant", content: "",
+    parts: [{
+      type: "tool-invocation",
+      toolInvocation: {
+        toolCallId: "1", toolName: "unknown_tool", state: "result", result: "ok",
+        args: {},
+      },
+    }],
+  }];
+
+  render(<MessageList messages={messages} />);
+  expect(screen.getByText("unknown_tool")).toBeDefined();
 });
 
 test("MessageList shows content for assistant message with content", () => {
