@@ -5,23 +5,53 @@ import { cn } from "@/lib/utils";
 import { User, Bot, Loader2 } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 
+function getToolLabel(toolName: string, args: Record<string, unknown>): string {
+  const filename = typeof args?.path === "string"
+    ? args.path.split("/").pop()
+    : undefined;
+
+  if (toolName === "str_replace_editor") {
+    const map: Record<string, string> = {
+      create: "Creating",
+      str_replace: "Updating",
+      insert: "Updating",
+      view: "Reading",
+    };
+    const verb = map[args?.command as string] ?? "Editing";
+    return filename ? `${verb} ${filename}` : verb;
+  }
+
+  if (toolName === "file_manager") {
+    if (args?.command === "rename") {
+      const newFilename = typeof args?.new_path === "string"
+        ? args.new_path.split("/").pop()
+        : undefined;
+      return newFilename ? `Renaming to ${newFilename}` : "Renaming file";
+    }
+    return filename ? `Deleting ${filename}` : "Deleting file";
+  }
+
+  return toolName;
+}
+
 interface MessageListProps {
   messages: Message[];
   isLoading?: boolean;
 }
 
-export function MessageList({ messages, isLoading }: MessageListProps) {
-  if (messages.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full px-4 text-center">
-        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-50 mb-4 shadow-sm">
-          <Bot className="h-7 w-7 text-blue-600" />
-        </div>
-        <p className="text-neutral-900 font-semibold text-lg mb-2">Start a conversation to generate React components</p>
-        <p className="text-neutral-500 text-sm max-w-sm">I can help you create buttons, forms, cards, and more</p>
+export function EmptyState() {
+  return (
+    <div className="flex flex-col items-center px-4 text-center">
+      <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-50 mb-4 shadow-sm">
+        <Bot className="h-7 w-7 text-blue-600" />
       </div>
-    );
-  }
+      <p className="text-neutral-900 font-semibold text-lg mb-2">Start a conversation to generate React components</p>
+      <p className="text-neutral-500 text-sm max-w-sm">I can help you create buttons, forms, cards, and more</p>
+    </div>
+  );
+}
+
+export function MessageList({ messages, isLoading }: MessageListProps) {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto px-4 py-6">
@@ -76,19 +106,15 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                             );
                           case "tool-invocation":
                             const tool = part.toolInvocation;
+                            const label = getToolLabel(tool.toolName, tool.args as Record<string, unknown>);
                             return (
-                              <div key={partIndex} className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-neutral-50 rounded-lg text-xs font-mono border border-neutral-200">
+                              <div key={partIndex} className="flex items-center gap-2.5 mt-2 px-4 py-3 bg-white rounded-xl border border-neutral-200 shadow-sm w-fit">
                                 {tool.state === "result" && tool.result ? (
-                                  <>
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                    <span className="text-neutral-700">{tool.toolName}</span>
-                                  </>
+                                  <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                                 ) : (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
-                                    <span className="text-neutral-700">{tool.toolName}</span>
-                                  </>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 shrink-0" />
                                 )}
+                                <span className="text-sm text-neutral-700">{label}</span>
                               </div>
                             );
                           case "source":
